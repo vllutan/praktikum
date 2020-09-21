@@ -20,20 +20,10 @@ int main(){
       ch = getchar();
     }
 
-    printf("\n%d ", numb_str);
-    for (i = 0; i < numb_str; i++) putchar(inp_string[i]);
-    putchar('\n');
-
-//    printf("%d %d\n", numb_max, numb_str);
     if (numb_max < numb_str) {
       max_string = inp_string;
       numb_max = numb_str;
-//      printf("%d %d\n", numb_max, numb_str);
     } else free(inp_string);
-
-    printf("%d ", numb_max);
-    for (i = 0; i < numb_max; i++) putchar(max_string[i]);
-    putchar('\n');
 
   }
 

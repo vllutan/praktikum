@@ -28,7 +28,7 @@ struct node *AddInFreqTree(struct node *head, char *str, int num, FILE *f_out){
 
   struct node *new;
   new = (struct node*)malloc(sizeof(struct node));
-  new->word = malloc(strlen(str));
+  new->word = malloc(strlen(str) + 1);
   strcpy(new->word, str);
   new->amount = num;
   new->left = NULL;
@@ -58,7 +58,7 @@ struct node *AddInDict(struct node *head, char *str){
 
   struct node *new;
   new = (struct node*)malloc(sizeof(struct node));
-  new->word = malloc(strlen(str));
+  new->word = malloc(strlen(str) + 1);
   strcpy(new->word, str);
   new->amount = 1;
   new->left = NULL;

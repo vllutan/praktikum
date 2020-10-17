@@ -109,7 +109,7 @@ char *NewWord(FILE *f_inp){
       if (i == str_size) {
         str_size = 2 * str_size + 1;
         str = (char *)realloc(str, str_size);
-        if (str == NULL) printf("str realloc error\n");
+        if (str == NULL) fprintf(stderr, "str realloc error\n");
       }
       str[i] = ch;
       i++;
@@ -131,12 +131,29 @@ int main(int argc, char *argv[]) {
   FILE *f_inp = stdin;
   FILE *f_out = stdout;
 
-  if (argc >= 2) {
-    if ( !strcmp(argv[1], "-i") ) f_inp = fopen(argv[2], "r");
-    else if ( !strcmp(argv[1], "-o") ) f_out = fopen(argv[2], "w");
-    if (argc >= 4) {
-      if ( !strcmp(argv[3], "-i") ) f_inp = fopen(argv[4], "r");
-      else if ( !strcmp(argv[3], "-o") ) f_out = fopen(argv[4], "w");
+  if (argc > 1) {
+    if ((argc == 4) || (argc == 2)) {
+      fprintf(stderr, "incorrect file arguments\n");
+      return 2;
+    } else { 
+      if ( !strcmp(argv[1], "-i") ) f_inp = fopen(argv[2], "r");
+      else if ( !strcmp(argv[1], "-o") ) f_out = fopen(argv[2], "w");
+      else {
+        fprintf(stderr, "incorrect file arguments\n");
+        return 2;
+      }
+
+      if (argc == 5) {
+        if ( !strcmp(argv[3], "-i") ) f_inp = fopen(argv[4], "r");
+        else if ( !strcmp(argv[3], "-o") ) f_out = fopen(argv[4], "w");
+        else {
+          fprintf(stderr, "incorrect file arguments\n");
+          return 2;
+        }
+      } else if (argc > 5) {
+        fprintf(stderr, "incorrect file arguments\n");
+        return 2;
+        }
     }
   }
 

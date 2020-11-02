@@ -21,7 +21,7 @@ unsigned short get_Symbol(FILE *f_inp){
 
 void Recode(FILE *f_out, unsigned short symbol){
   unsigned char ch[3];
-  if(symbol == 0x000d) return;
+  
   if (symbol < 128) {
     ch[0] = symbol & 0x7f;
     fwrite(ch, 1, 1, f_out);
@@ -33,7 +33,7 @@ void Recode(FILE *f_out, unsigned short symbol){
   }
   else {
     ch[0] = ((symbol >> 12) & 0xf) | 0xe0;
-    ch[1] = ((symbol >> 6 )& 0x3f) | 0x80;
+    ch[1] = ((symbol >> 6) & 0x3f) | 0x80;
     ch[2] = ((symbol & 0x3f)) | 0x80;
     fwrite(ch, 1, 3, f_out);
   }
@@ -45,12 +45,12 @@ int main(int argc, char **argv) {
 
   if (argc > 1) {
     f_inp = fopen(argv[1], "rb");
-    if (argc > 2) f_out = fopen(argv[2], "w");
+    if (argc > 2) f_out = fopen(argv[2], "wb");
     if (argc > 3) fprintf(stderr, "More parameters than needed\n");
   }
 
-  if(f_inp == NULL) { fprintf(stderr, "Incorrect input file opening\n"); return -2;}
-  if(f_out == NULL) { fprintf(stderr, "Incorrect output file opening\n"); return -2;}
+  if(f_inp == NULL) { fprintf(stderr, "Incorrect input file opening\n"); return -2; }
+  if(f_out == NULL) { fprintf(stderr, "Incorrect output file opening\n"); return -2; }
 
   unsigned short bom, sym;
 
@@ -75,7 +75,7 @@ int main(int argc, char **argv) {
     } else sym = get_Symbol(f_inp);
   }
   if (bom != 0xfeff) {
-    fprintf(stderr, "No BOM found, LE is used\n");
+    fprintf(stderr, "Warning: no BOM found, LE is used\n");
     sym = bom;
   } else Recode(f_out, bom);
 

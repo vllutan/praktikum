@@ -1,45 +1,86 @@
 #include <stdio.h>
 
-int if_be = 0;
+unsigned char bytes[3];
+unsigned char bytes16[2]; //0 - higher, 1 - lower
+int if_be=0;
 
-unsigned short get_Symbol(FILE *f_inp){
-  unsigned short symb=0, byte=0;
+void Make_UTF16(int num, FILE *f_out, FILE *f_inp){
+  if(num == 1){
+    bytes16[0] = 0;
+    bytes16[1] = bytes[0];
+  } else if (num == 2){
+    bytes16[0] = bytes[0] >> 2;
+    bytes16[1] = (bytes[0] << 6) | bytes[1];
+  } else if (num == 3){
+    bytes16[0] = (bytes[0] << 4) | (bytes[1] >> 2);
+    bytes16[1] = (bytes[1] << 6) | bytes[2];
+  }
 
-  if (fread(&symb, 1, 1, f_inp) ) {
-    if (fread(&byte, 1, 1, f_inp)) {
-      byte = byte << 8;
-      symb = symb | byte;
+  if (if_be) {
+    fwrite(bytes16, 1, 2, f_out);
+  } else {
+    fwrite(bytes16+1, 1, 1, f_out);
+    fwrite(bytes16, 1, 1, f_out);
+  }
+
+  if (num == 1){
+    bytes[0] = bytes[1];
+    bytes[1] = bytes[2];
+    for (int i=2; i<=2;i++) if( fread(bytes+i, 1, 1, f_inp) == 0) {bytes[i] = 0xff;}
+  } else if (num == 2){
+    bytes[0] = bytes[2];
+    for (int i=1; i<=2;i++) if( fread(bytes+i, 1, 1, f_inp) == 0) {bytes[i] = 0xff;}
+  } else if (num == 3) {
+    for (int i = 0; i <= 2; i++)
+      if (fread(bytes + i, 1, 1, f_inp) == 0) bytes[i] = 0xff;
+  }
+}
+
+int get_Symbol(FILE *f_out, FILE *f_inp){
+  if ( (bytes[0] & 0x80) == 0) {
+    Make_UTF16(1, f_out, f_inp);
+    return 1;
+  } else if ( (bytes[0] & 0xe0) == 0xc0){
+    if ( (bytes[1] & 0xc0) == 0x80) {
+      bytes[0] = bytes[0] & 0x1f;
+      bytes[1] = bytes[1] & 0x3f;
+      Make_UTF16(2, f_out, f_inp);
+      return 2;
     } else {
-      fprintf(stderr, "Odd number of bytes\n");
-      return get_Symbol(f_inp);
+      fprintf(stderr, "Incorrect byte sequence: no continuing byte (for 2-byte symbols); "
+                      "Position: %ld; Symbol: %x\n", ftell(f_inp)-2, bytes[1]);
+      bytes[0] = bytes[2];
+      for (int i=1; i<=2;i++) if( fread(bytes+i, 1, 1, f_inp) == 0) {bytes[i] = 0xff;}
     }
-
-    if (if_be) symb = (0xff00 & (symb << 8)) | ((symb >> 8) & 0xff);
+  } else if ( (bytes[0] & 0xf0) == 0xe0) {
+    if ( (bytes[1] & 0xc0) == 0x80){
+      if ( (bytes[2] & 0xc0) == 0x80) {
+        bytes[0] = bytes[0] & 0xf;
+        bytes[1] = bytes[1] & 0x3f;
+        bytes[2] = bytes[2] & 0x3f;
+        Make_UTF16(3, f_out, f_inp);
+        return 3;
+      } else {
+        fprintf(stderr, "Incorrect byte sequence: no 2nd continuing byte (for 3-byte symbols); "
+                        "Position: %ld; Symbol: %x\n", ftell(f_inp)-1, bytes[2]);
+        for (int i=0; i<=2;i++) if( fread(bytes+i, 1, 1, f_inp) == 0) {bytes[i] = 0xff;}
+      }
+    } else {
+      fprintf(stderr, "Incorrect byte sequence: no 1st continuing byte (for 3-byte symbols); "
+                      "Position: %ld; Symbol: %x\n", ftell(f_inp)-2, bytes[1]);
+      bytes[0] = bytes[2];
+      for (int i=1; i<=2;i++) if( fread(bytes+i, 1, 1, f_inp) == 0) {bytes[i] = 0xff;}
+    }
+  } else {
+    fprintf(stderr, "Incorrect byte sequence: doesn't start with anything appropriate; "
+                    "Position: %ld; Symbol: %x\n", ftell(f_inp)-3, bytes[0]);
+    bytes[0] = bytes[1];
+    bytes[1] = bytes[2];
+    for (int i=2; i<=2;i++) if( fread(bytes+i, 1, 1, f_inp) == 0) {bytes[i] = 0xff;}
   }
-  return symb;
 }
 
-void Recode(FILE *f_out, unsigned short symbol){
-  unsigned char ch[3];
-  
-  if (symbol < 128) {
-    ch[0] = symbol & 0x7f;
-    fwrite(ch, 1, 1, f_out);
-  }
-  else if(symbol < 2048) {
-    ch[0] = ((symbol >> 6) & 0x1f) | 0xc0;
-    ch[1] = (symbol & 0x3f) | 0x80;
-    fwrite(ch, 1, 2, f_out);
-  }
-  else {
-    ch[0] = ((symbol >> 12) & 0xf) | 0xe0;
-    ch[1] = ((symbol >> 6) & 0x3f) | 0x80;
-    ch[2] = ((symbol & 0x3f)) | 0x80;
-    fwrite(ch, 1, 3, f_out);
-  }
-}
-
-int main(int argc, char **argv) {
+int main(int argc, char **argv){
   FILE *f_inp = stdin;
   FILE *f_out = stdout;
 
@@ -52,36 +93,30 @@ int main(int argc, char **argv) {
   if(f_inp == NULL) { fprintf(stderr, "Incorrect input file opening\n"); return -2; }
   if(f_out == NULL) { fprintf(stderr, "Incorrect output file opening\n"); return -2; }
 
-  unsigned short bom, sym;
+  for (int i=0; i<=2;i++) if( fread(bytes+i, 1, 1, f_inp) == 0) {bytes[i] = 0xff;}
 
-  fread(&bom, 2, 1, f_inp);
-
-  if ( (bom & 0xff) == 0xfe){
-    if ( (bom & 0xff00) == 0xff00 ) {
-      if_be = 1;
-      sym = get_Symbol(f_inp);
+  if (bytes[0] == 0xef) {
+    if (bytes[1] == 0xbb){
+      if(bytes[2] == 0xbf){
+        if_be = 1;
+        Make_UTF16(3, f_out, f_inp);
+      } else {
+        bytes[0] = bytes[2];
+        for (int i=1; i<=2;i++) if( fread(bytes+i, 1, 1, f_inp) == 0) {bytes[i] = 0xff;}
+      }
     } else {
-      fread(&sym, 1, 1, f_inp);
-      sym = sym << 8;
-      sym = sym | (bom >> 8);
+      bytes[0] = bytes[1];
+      bytes[1] = bytes[2];
+      for (int i=2; i<=2;i++) if( fread(bytes+i, 1, 1, f_inp) == 0) {bytes[i] = 0xff;}
     }
-    bom = 0xfeff;
-  } else if ( (bom & 0xff) == 0xff){
-    if ( (bom & 0xff00) != 0xfe00 ) {
-      if_be = 1;
-      fread(&sym, 1, 1, f_inp);
-      sym = sym | (bom & 0xff00);
-      bom = 0xfeff;
-    } else sym = get_Symbol(f_inp);
-  }
-  if (bom != 0xfeff) {
+  } else {
+    putc(0xff, f_out);
+    putc(0xfe, f_out);
     fprintf(stderr, "Warning: no BOM found, LE is used\n");
-    sym = bom;
-  } else Recode(f_out, bom);
+  }
 
-  while( !feof(f_inp) ) {
-    Recode(f_out, sym);
-    sym = get_Symbol(f_inp);
+  while( bytes[0] != 0xff ) {
+    get_Symbol(f_out, f_inp);
   }
 
   fclose(f_inp);

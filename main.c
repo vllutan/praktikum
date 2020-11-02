@@ -36,16 +36,14 @@ void Make_UTF16(int num, FILE *f_out, FILE *f_inp){
   }
 }
 
-int get_Symbol(FILE *f_out, FILE *f_inp){
+void get_Symbol(FILE *f_out, FILE *f_inp){
   if ( (bytes[0] & 0x80) == 0) {
     Make_UTF16(1, f_out, f_inp);
-    return 1;
   } else if ( (bytes[0] & 0xe0) == 0xc0){
     if ( (bytes[1] & 0xc0) == 0x80) {
       bytes[0] = bytes[0] & 0x1f;
       bytes[1] = bytes[1] & 0x3f;
       Make_UTF16(2, f_out, f_inp);
-      return 2;
     } else {
       fprintf(stderr, "Incorrect byte sequence: no continuing byte (for 2-byte symbols); "
                       "Position: %ld; Symbol: %x\n", ftell(f_inp)-2, bytes[1]);
@@ -59,7 +57,6 @@ int get_Symbol(FILE *f_out, FILE *f_inp){
         bytes[1] = bytes[1] & 0x3f;
         bytes[2] = bytes[2] & 0x3f;
         Make_UTF16(3, f_out, f_inp);
-        return 3;
       } else {
         fprintf(stderr, "Incorrect byte sequence: no 2nd continuing byte (for 3-byte symbols); "
                         "Position: %ld; Symbol: %x\n", ftell(f_inp)-1, bytes[2]);

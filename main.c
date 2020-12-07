@@ -7,10 +7,11 @@
 #include <unistd.h>
 #include <limits.h>
 #include <fcntl.h>
+#include <signal.h>
 
 char *word;
 char **arg_v;
-int c, num=0;
+int c, num=0, if_back;
 
 int enterCommand(){
   int i=0, redirect=-1, file;
@@ -34,10 +35,18 @@ int enterCommand(){
     if (c != '"') {
 
       while ((c != ' ') && (c != '\t') && (c != '\n') && (c != '|') && (c != '<') & (c != '>')) {
-        word[i] = c;
-        i++;
-        word = realloc(word, i * sizeof(char *));
-        c = getchar();
+        if (if_back == 1) {
+          if_back = 2;
+          break;
+        } else if (c == '&') {
+          if_back = 1;
+          c = getchar();
+        } else {
+          word[i] = c;
+          i++;
+          word = realloc(word, i * sizeof(char *));
+          c = getchar();
+        }
       }
       word[i] = '\0';
     } else {
@@ -51,30 +60,39 @@ int enterCommand(){
       if (c == '"') c = getchar();
     }
 
-    switch (redirect) {
-      case 0:
-        file = open(word, O_RDONLY, 0644);
-        dup2(file, 0);
-        close(file);
-        break;
-      case 1:
-        file = open(word, O_RDWR | O_TRUNC | O_CREAT, 0644);
-        dup2(file, 1);
-        close(file);
-        break;
-      case 2:
-        file = open(word, O_RDWR | O_APPEND, 0644);
-        dup2(file, 1);
-        close(file);
-        break;
-      case -1:
-        if (word[0] != '\0') {
-          arg_v = realloc(arg_v, (num + 1) * sizeof(char **));
-          arg_v[num] = malloc((strlen(word) + 1) * sizeof(char *));
-          strcpy(arg_v[num], word);
-          num++;
-        }
+    while ((c == ' ') || (c == '\t')) c = getchar();
 
+    if(if_back && (c != '\n')) {
+      if_back = 3;
+      fprintf(stderr, "& error: not at the end\n");
+    }
+
+    if(if_back < 2) {
+      switch (redirect) {
+        case 0:
+          file = open(word, O_RDONLY, 0644);
+          dup2(file, 0);
+          close(file);
+          break;
+        case 1:
+          file = open(word, O_RDWR | O_TRUNC | O_CREAT, 0644);
+          dup2(file, 1);
+          close(file);
+          break;
+        case 2:
+          file = open(word, O_RDWR | O_APPEND, 0644);
+          dup2(file, 1);
+          close(file);
+          break;
+        case -1:
+          if (word[0] != '\0') {
+            arg_v = realloc(arg_v, (num + 1) * sizeof(char **));
+            arg_v[num] = malloc((strlen(word) + 1) * sizeof(char *));
+            strcpy(arg_v[num], word);
+            num++;
+          }
+
+      }
     }
     free(word);
     if (c == '|') break;
@@ -84,7 +102,7 @@ int enterCommand(){
 
 int main() {
 
-  int i=0, fd[2], origin[2], redir=-1;
+  int i=0, fd[2], origin[2], redir=-1, status, back_proc=0, back_released=1;
   pid_t id;
 
   pipe(origin);
@@ -99,10 +117,29 @@ int main() {
     arg_v = malloc(sizeof(char **));
     arg_v[0] = NULL;
     num = 0;
+    if_back = 0;
+    signal(SIGINT, SIG_DFL);
+
+    while((id = waitpid(-1, &status, WNOHANG)) > 0){
+      if(WIFEXITED(status)){
+        printf("[%d] finished well with status %d\n\n", back_released, WEXITSTATUS(status));
+        back_released++;
+      } else if (WIFSIGNALED(status)){
+        printf("[%d] finished idk how with status %d\n\n", back_released, WTERMSIG(status));
+        back_released++;
+      } else if (WIFSTOPPED(status)){
+        printf("[%d] finished badly with status %d\n\n", back_released, WSTOPSIG(status));
+        back_released++;
+      }
+      if(back_proc == (back_released - 1)) {
+        back_proc = 0;
+        back_released = 1;
+      }
+    }
 
     redir = enterCommand();
 
-    if (arg_v[0]) {
+    if (arg_v[0] && (if_back < 2)) {
       if ((c == '\n') || (c == EOF)) {
         if (redir <= 0) dup2(origin[1], 1);
         if (strcmp(arg_v[0], "exit") == 0) {
@@ -120,17 +157,20 @@ int main() {
               chdir(home_path);
             } else if (chdir(arg_v[1]) == -1) perror("chdir error");
           } else {
+            if (if_back) { back_proc++; printf("[%d]   %d\n", back_proc, getpid());}
 
             id = fork();
             if (id < 0) {
               perror("fork error");
               exit(4);
             } else if (id == 0) {
+
               execvp(arg_v[0], arg_v);
               perror("execvp error");
               exit(1);
             } else {
-              wait(NULL);
+              if(if_back) signal(SIGINT, SIG_IGN);
+              if (if_back == 0) waitpid(id, &status, 0);
             }
           }
         }
@@ -161,6 +201,8 @@ int main() {
         } else fprintf(stderr, "Incorrect use of commands (cd/exit) in pipe");
         while(wait(NULL) != -1);
       }
+    } else {
+      printf(" >>> ");
     }
 
     for (i = 0; i < num; i++) free(arg_v[i]);

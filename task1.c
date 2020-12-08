@@ -12,12 +12,13 @@
 
 int main(int argc, char **argv) {
 
-  for (int i=0; i<argc; i++){
-    printf("%d %s\n", i, argv[i]);
-  }
-
   int ret, file;
-  int fd[2];
+  int fd[2], origin[2];
+
+  pipe(origin);
+  dup2(0, origin[0]);
+  dup2(1, origin[1]);
+
   pipe(fd);
 
   file = open(argv[3], O_RDONLY, 0644);
@@ -29,6 +30,9 @@ int main(int argc, char **argv) {
     perror("fork error: ");
     exit(1);
   } else if (id == 0) {
+    dup2(fd[1], 1);
+    close(fd[0]);
+    close(fd[1]);
 
     ret = execlp(argv[1], argv[1], NULL);
     printf("%d\n", ret);
@@ -43,6 +47,25 @@ int main(int argc, char **argv) {
   } else {
     wait(NULL);
   }
+
+  dup2(fd[0], 0);
+  close(fd[0]);
+  close(fd[1]);
+  dup2(origin[1], 1);
+
+  id = fork();
+  if (id < 0) {
+    perror("fork error: ");
+    exit(4);
+  } else if (id == 0) {
+    execlp(argv[4], argv[4], NULL);
+    perror("execlp 4 error: ");
+    exit(5);
+  } else {
+    wait(NULL);
+  }
+
+  dup2(origin[0], 0);
 
   return 0;
 }

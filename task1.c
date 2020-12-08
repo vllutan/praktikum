@@ -11,5 +11,14 @@
 
 int main() {
 
+  pid_t id = fork();
+  if (id < 0) {
+
+  } else if (id == 0) {
+
+  } else {
+    
+  }
+
   return 0;
 }

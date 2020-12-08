@@ -12,7 +12,7 @@
 
 int main(int argc, char **argv) {
 
-  int ret, file;
+  int ret, file, status;
   int fd[2], origin[2];
 
   pipe(origin);
@@ -26,6 +26,7 @@ int main(int argc, char **argv) {
   close(file);
 
   pid_t id = fork();
+  pid_t pid;
   if (id < 0) {
     perror("fork error: ");
     exit(1);
@@ -37,15 +38,28 @@ int main(int argc, char **argv) {
     ret = execlp(argv[1], argv[1], NULL);
     printf("%d\n", ret);
     perror("execlp 1 error: ");
-    //exit(2);
-    if (ret == -1){
-      execlp(argv[2], argv[2], NULL);
-      perror("execlp 2 error: ");
-      exit(3);
-    }
 
   } else {
-    wait(NULL);
+    pid = waitpid(id, &status, 0);
+
+    printf("%d\n", WIFEXITED(status));
+    if (WIFEXITED(status) == 0){
+      pid = fork();
+      if (pid < 0) {
+        perror("fork error: ");
+        exit(1);
+      } else if (pid == 0) {
+        dup2(fd[1], 1);
+        close(fd[0]);
+        close(fd[1]);
+
+        execlp(argv[2], argv[2], NULL);
+        perror("execlp 2 error: ");
+        //exit(3);
+      } else {
+        wait(NULL);
+      }
+    }
   }
 
   dup2(fd[0], 0);

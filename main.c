@@ -158,7 +158,7 @@ int main() {
 
       if(c == '|') if_pipe = 1;
 
-      if ((strcmp(arg_v[0], "exit") == 0) && (if_back == 0)) {
+      if (strcmp(arg_v[0], "exit") == 0) {
         if(if_pipe){
           pipe(fd); close(fd[0]); close(fd[1]); pipe(fd);
         } else {
@@ -183,8 +183,7 @@ int main() {
           perror("fork error");
           exit(4);
         } else if (id == 0) {
-
-          printf("%d %d\n", back_proc, if_back);
+          
           if (if_back == 0) signal(SIGINT, KillProc);
 
           if(c != '|') {if (redir_outp == 0) dup2(origin[1], 1);}

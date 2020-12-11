@@ -158,7 +158,7 @@ int main() {
 
       if(c == '|') if_pipe = 1;
 
-      if (strcmp(arg_v[0], "exit") == 0) {
+      if ((strcmp(arg_v[0], "exit") == 0) && (if_back == 0)) {
         if(if_pipe){
           pipe(fd); close(fd[0]); close(fd[1]); pipe(fd);
         } else {
@@ -166,14 +166,16 @@ int main() {
           free(arg_v);
           break;
         }
-      } else if (strcmp(arg_v[0], "cd") == 0) {
+      } else if ((strcmp(arg_v[0], "cd") == 0) && (if_back == 0)) {
         if(if_pipe){
           pipe(fd); close(fd[0]);  close(fd[1]);
-        } else if (arg_v[1] == NULL) {
-          char home_path[PATH_MAX];
-          strcpy(home_path, getenv("HOME"));
-          chdir(home_path);
-        } else if (chdir(arg_v[1]) == -1) perror("chdir error");
+        } else {
+          if (arg_v[1] == NULL) {
+            char home_path[PATH_MAX];
+            strcpy(home_path, getenv("HOME"));
+            chdir(home_path);
+          } else if (chdir(arg_v[1]) == -1) perror("chdir error");
+        }
       } else{
         if (if_back) { back_proc++; printf("[%d]   %d\n", back_proc, getpid()); }
 
@@ -183,16 +185,18 @@ int main() {
           perror("fork error");
           exit(4);
         } else if (id == 0) {
-          
+
           if (if_back == 0) signal(SIGINT, KillProc);
 
-          if(c != '|') {if (redir_outp == 0) dup2(origin[1], 1);}
+          if (c != '|') { if (redir_outp == 0) dup2(origin[1], 1); }
           else dup2(fd[1], 1);
           close(fd[0]);
           close(fd[1]);
+
           execvp(arg_v[0], arg_v);
           perror("execvp error");
           exit(1);
+
         } else {
           if (if_back == 0) { waitpid(id, &status, 0); }
         }

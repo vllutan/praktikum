@@ -11,11 +11,11 @@
 
 char *word;
 char **arg_v;
-int c, num=0, if_back;
+int c, ch, num=0, if_back=0, if_pipe=0, redir_inp=0, redir_outp=0;
 
 int enterCommand(){
   int i=0, redirect=-1, file;
-  while ((c != '\n') && (c != EOF)) {
+  while ((c != '\n') && (c != EOF) && (c != ';')) {
 
     word = malloc(sizeof(char *));
     while ((c == ' ') || (c == '\t')) c = getchar();
@@ -23,9 +23,9 @@ int enterCommand(){
     if (c == '\n') break;
     i = 0;
 
-    if ( c == '<' ) {redirect = 0; c = getchar();}
+    if ( c == '<' ) {redirect = 0; redir_inp = 1; c = getchar();}
     else if ( c == '>') {
-      redirect = 1;
+      redirect = 1; redir_outp = 1;
       if ( (c = getchar()) == '>') {
         redirect = 2;
         c = getchar();
@@ -34,7 +34,7 @@ int enterCommand(){
 
     if (c != '"') {
 
-      while ((c != ' ') && (c != '\t') && (c != '\n') && (c != '|') && (c != '<') & (c != '>')) {
+      while ((c != ' ') && (c != '\t') && (c != '\n') && (c != '|') && (c != '<') && (c != '>') && (c != ';')) {
         if (if_back == 1) {
           if_back = 2;
           break;
@@ -62,9 +62,10 @@ int enterCommand(){
 
     while ((c == ' ') || (c == '\t')) c = getchar();
 
-    if(if_back && (c != '\n')) {
+    if(if_back && (c != '\n') && (c != ';')) {
       if_back = 3;
       fprintf(stderr, "& error: not at the end\n");
+      exit(8);
     }
 
     if(if_back < 2) {
@@ -100,9 +101,13 @@ int enterCommand(){
   return redirect;
 }
 
+void KillProc(int sig){
+  exit(0);
+}
+
 int main() {
 
-  int i=0, fd[2], origin[2], redir=-1, status, back_proc=0, back_released=1;
+  int i=0, fd[2], origin[2], status, back_proc=0, back_released=1;
   pid_t id;
 
   pipe(origin);
@@ -113,97 +118,105 @@ int main() {
   c = getchar();
 
   while ( c != EOF) {
-
     arg_v = malloc(sizeof(char **));
     arg_v[0] = NULL;
     num = 0;
     if_back = 0;
-    signal(SIGINT, SIG_DFL);
+    redir_outp=0; redir_inp=0;
+
+    signal(SIGINT, SIG_IGN);
+
+//  -------------------- PROCESSING BACK PROCESSES --------------------------------------------
 
     while((id = waitpid(-1, &status, WNOHANG)) > 0){
       if(WIFEXITED(status)){
         printf("[%d] finished well with status %d\n\n", back_released, WEXITSTATUS(status));
         back_released++;
+        back_proc--;
       } else if (WIFSIGNALED(status)){
         printf("[%d] finished idk how with status %d\n\n", back_released, WTERMSIG(status));
         back_released++;
+        back_proc--;
       } else if (WIFSTOPPED(status)){
         printf("[%d] finished badly with status %d\n\n", back_released, WSTOPSIG(status));
         back_released++;
+        back_proc--;
       }
-      if(back_proc == (back_released - 1)) {
-        back_proc = 0;
-        back_released = 1;
-      }
+      if(back_proc == 0) back_released = 1;
     }
 
-    redir = enterCommand();
+
+
+    enterCommand();
+
+//   --------------- PROCESSING COMMAND in IF cycle ---------------------------------------
 
     if (arg_v[0] && (if_back < 2)) {
-      if ((c == '\n') || (c == EOF)) {
-        if (redir <= 0) dup2(origin[1], 1);
-        if (strcmp(arg_v[0], "exit") == 0) {
+      arg_v = realloc(arg_v, (num + 1) * sizeof(char **));
+      arg_v[num] = NULL;
+      num++;
+
+      if(c == '|') if_pipe = 1;
+
+      if ((strcmp(arg_v[0], "exit") == 0) && (if_back == 0)) {
+        if(if_pipe){
+          pipe(fd); close(fd[0]); close(fd[1]); pipe(fd);
+        } else {
           for (i = 0; i < num; i++) free(arg_v[i]);
           free(arg_v);
           break;
-        } else {
-          arg_v = realloc(arg_v, (num + 1) * sizeof(char **));
-          arg_v[num] = NULL;
-          num++;
-          if (strcmp(arg_v[0], "cd") == 0) {
-            if (arg_v[1] == NULL) {
-              char home_path[PATH_MAX];
-              strcpy(home_path, getenv("HOME"));
-              chdir(home_path);
-            } else if (chdir(arg_v[1]) == -1) perror("chdir error");
-          } else {
-            if (if_back) { back_proc++; printf("[%d]   %d\n", back_proc, getpid());}
-
-            id = fork();
-            if (id < 0) {
-              perror("fork error");
-              exit(4);
-            } else if (id == 0) {
-
-              execvp(arg_v[0], arg_v);
-              perror("execvp error");
-              exit(1);
-            } else {
-              if(if_back) signal(SIGINT, SIG_IGN);
-              if (if_back == 0) waitpid(id, &status, 0);
-            }
-          }
         }
-        dup2(origin[0], 0);
-        dup2(origin[1], 1);
-        printf(" >>> ");
-      } else if (c == '|'){
-        arg_v = realloc(arg_v, (num + 1) * sizeof(char **));
-        arg_v[num] = NULL;
-        num++;
-        if (strcmp(arg_v[0], "cd") && strcmp(arg_v[0], "exit")){
-          pipe(fd);
-          id = fork();
-          if (id < 0) {
-            perror("fork error 2");
-            exit(5);
-          } else if (id == 0){
-            dup2(fd[1], 1);
-            close(fd[0]);
-            close(fd[1]);
-            execvp(arg_v[0], arg_v);
-            perror("exec error 2");
-            exit(6);
-          }
-          dup2(fd[0], 0);
+      } else if (strcmp(arg_v[0], "cd") == 0) {
+        if(if_pipe){
+          pipe(fd); close(fd[0]);  close(fd[1]);
+        } else if (arg_v[1] == NULL) {
+          char home_path[PATH_MAX];
+          strcpy(home_path, getenv("HOME"));
+          chdir(home_path);
+        } else if (chdir(arg_v[1]) == -1) perror("chdir error");
+      } else{
+        if (if_back) { back_proc++; printf("[%d]   %d\n", back_proc, getpid()); }
+
+        pipe(fd);
+        id = fork();
+        if (id < 0) {
+          perror("fork error");
+          exit(4);
+        } else if (id == 0) {
+
+          printf("%d %d\n", back_proc, if_back);
+          if (if_back == 0) signal(SIGINT, KillProc);
+
+          if(c != '|') {if (redir_outp == 0) dup2(origin[1], 1);}
+          else dup2(fd[1], 1);
           close(fd[0]);
           close(fd[1]);
-        } else fprintf(stderr, "Incorrect use of commands (cd/exit) in pipe");
-        while(wait(NULL) != -1);
+          execvp(arg_v[0], arg_v);
+          perror("execvp error");
+          exit(1);
+        } else {
+          if (if_back == 0) { waitpid(id, &status, 0); }
+        }
       }
-    } else {
-      printf(" >>> ");
+
+      if (c != '|') if_pipe = 0;
+
+      if(if_pipe == 0) {
+        dup2(origin[0], 0);
+        dup2(origin[1], 1);
+      } else {
+        if(redir_outp){
+          close(fd[1]); close(fd[0]); pipe(fd);
+        }
+        else dup2(fd[0], 0);
+      }
+      close(fd[0]);
+      close(fd[1]);
     }
+
+
+    if(c == '\n') printf("\n >>> ");
+
 
     for (i = 0; i < num; i++) free(arg_v[i]);
     free(arg_v);

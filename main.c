@@ -52,9 +52,12 @@ int enterCommand(char **arg_v, char*str_inp, int *cur_pos, int *flags, int *orig
       if (c == '"') {(*cur_pos)++; c = str_inp[*cur_pos];}
     } else if(c == '(') {
       flags[5] = 1;      //if_braces
+      int br_open=0, br_close=0;
 
       (*cur_pos)++; c = str_inp[*cur_pos];
-      while (c != ')') {
+      while (!( (c == ')') && (br_open == br_close) )){
+        if(c == '(') br_open++;
+        if(c == ')') br_close++;
         word[i] = c;
         i++;
         word = realloc(word, (i+1) * sizeof(char *));

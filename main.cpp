@@ -44,7 +44,7 @@ class Book {
     return *this;
   }
 
-  //~Book(){}
+  ~Book(){}
 
 };
 
@@ -213,7 +213,6 @@ void Menu(){
 
 
 int main() {
-  // -------------------- change malloc to new
   Library L;
   int action;
 
@@ -221,6 +220,7 @@ int main() {
   do {
     cout << "\n/print number (Menu - 10)/" << endl;
     cin >> action;
+    //cin.ignore(10, '\n');
     switch (action) {
       case 1:{
         string name;
@@ -230,6 +230,7 @@ int main() {
         int i=0;
         while(arr[i] != -1) {cout << arr[i]+1 << " "; i++;}
         cout << endl;
+        delete [] arr;
 
         break;
       }
@@ -241,6 +242,7 @@ int main() {
         int i=0;
         while(arr[i] != -1) {cout << arr[i]+1 << " "; i++;}
         cout << endl;
+        delete [] arr;
 
         break;
       }
@@ -252,6 +254,7 @@ int main() {
         int i=0;
         while(arr[i] != -1) {cout << arr[i]+1 << " "; i++;}
         cout << endl;
+        delete [] arr;
 
         break;
       }
@@ -263,6 +266,7 @@ int main() {
         int i=0;
         while(arr[i] != -1) {cout << arr[i]+1 << " "; i++;}
         cout << endl;
+        delete [] arr;
 
         break;
       }
@@ -337,10 +341,11 @@ int main() {
       }
       case 9: return 0;
       case 10: {Menu(); break;}
-      default: {
-        cout << "Try choosing again" << endl;
-        break;
-      }
+      //default: {
+        //cout << "Try choosing again" << endl;
+        //Menu();
+        //continue;
+      //}
     };
   } while(true);
 

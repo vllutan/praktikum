@@ -36,7 +36,15 @@ class Book {
   const int get_page() const {return num_page;}
   const string get_year() const {return release_year;}
 
-  ~Book(){}
+  Book& operator=(const Book &b){
+    name = b.get_name();
+    author = b.get_author();
+    num_page = b.get_page();
+    release_year = b.get_year();
+    return *this;
+  }
+
+  //~Book(){}
 
 };
 
@@ -44,10 +52,10 @@ class Library {
   int size;
   Book *book_array;
  public:
-  Library() {size = 0; book_array = (Book*)malloc(sizeof(Book));}
+  Library() {size = 0; book_array = new Book [1];}
   Library(const Library &l) {
     size = l.get_size();
-    book_array = (Book*)malloc(size * sizeof(Book));
+    book_array = new Book [size];
     for(int i=0; i<size; ++i){
       book_array[i] = l.get_n(i);
     }
@@ -64,13 +72,16 @@ class Library {
   }
 
   int* find_by_name(const string& needed_name){
-    int *index_arr = (int*)malloc(sizeof(int));
+    int *index_arr = new int [1];
     int arr_size = 0;
     for (int i=0; i<size; ++i){
       if(book_array[i].get_name() == needed_name){
-        index_arr[arr_size] = i;
         ++arr_size;
-        index_arr = (int*)realloc(index_arr, (arr_size + 1)* sizeof(int));
+        int *arr = new int[arr_size];
+        for(int j = 0; j < arr_size - 1; ++j) {arr[j] = index_arr[j];}
+        arr[arr_size - 1] = i;
+        delete[] index_arr;
+        index_arr = arr;
       }
     }
     index_arr[arr_size] = -1;
@@ -78,13 +89,16 @@ class Library {
   }
 
   int* find_by_author(const string& needed_author){
-    int *index_arr = (int*)malloc(sizeof(int));
+    int *index_arr = new int [1];
     int arr_size = 0;
     for (int i=0; i<size; ++i){
       if(book_array[i].get_author() == needed_author){
-        index_arr[arr_size] = i;
         ++arr_size;
-        index_arr = (int*)realloc(index_arr, (arr_size + 1)* sizeof(int));
+        int *arr = new int[arr_size];
+        for(int j = 0; j < arr_size - 1; ++j) {arr[j] = index_arr[j];}
+        arr[arr_size - 1] = i;
+        delete[] index_arr;
+        index_arr = arr;
       }
     }
     index_arr[arr_size] = -1;
@@ -92,13 +106,16 @@ class Library {
   }
 
   int* find_by_page(const int& needed_page){
-    int *index_arr = (int*)malloc(sizeof(int));
+    int *index_arr = new int [1];
     int arr_size = 0;
     for (int i=0; i<size; ++i){
       if(book_array[i].get_page() == needed_page){
-        index_arr[arr_size] = i;
         ++arr_size;
-        index_arr = (int*)realloc(index_arr, (arr_size + 1)* sizeof(int));
+        int *arr = new int[arr_size];
+        for(int j = 0; j < arr_size - 1; ++j) {arr[j] = index_arr[j];}
+        arr[arr_size - 1] = i;
+        delete[] index_arr;
+        index_arr = arr;
       }
     }
     index_arr[arr_size] = -1;
@@ -106,13 +123,16 @@ class Library {
   }
 
   int* find_by_year(const string& needed_year){
-    int *index_arr = (int*)malloc(sizeof(int));
+    int *index_arr = new int [1];
     int arr_size = 0;
     for (int i=0; i<size; ++i){
       if(book_array[i].get_year() == needed_year){
-        index_arr[arr_size] = i;
         ++arr_size;
-        index_arr = (int*)realloc(index_arr, (arr_size + 1)* sizeof(int));
+        int *arr = new int[arr_size];
+        for(int j = 0; j < arr_size - 1; ++j) {arr[j] = index_arr[j];}
+        arr[arr_size - 1] = i;
+        delete[] index_arr;
+        index_arr = arr;
       }
     }
     index_arr[arr_size] = -1;
@@ -130,15 +150,22 @@ class Library {
   }
 
   Library& add_book(const Book& new_book){
-    book_array[size] = new_book;
     size++;
-    book_array = (Book*)realloc(book_array, (size + 1)* sizeof(Book));
+    Book *arr = new Book [size];
+    for(int j = 0; j < size - 1; ++j) {arr[j] = book_array[j];}
+    arr[size - 1] = new_book;
+    delete[] book_array;
+    book_array = arr;
     return *this;
   }
 
   Library& delete_book(const int index){
-    for(int i=index; i<(size-1); ++i){book_array[i] = book_array[i+1];}
     size--;
+    Book *arr = new Book [size];
+    for(int i=0; i<index; ++i){arr[i] = book_array[i];}
+    for(int i=index; i<size; ++i){arr[i] = book_array[i+1];}
+    delete [] book_array;
+    book_array = arr;
     return *this;
   }
 
@@ -164,7 +191,7 @@ class Library {
   }
 
   ~Library(){
-    if (book_array) free(book_array);
+    delete [] book_array;
     book_array = nullptr;
   }
 
@@ -192,7 +219,7 @@ int main() {
 
   Menu();
   do {
-    cout << "\n/print number/" << endl;
+    cout << "\n/print number (Menu - 10)/" << endl;
     cin >> action;
     switch (action) {
       case 1:{
@@ -303,7 +330,7 @@ int main() {
       }
       case 8:{
         for(int i=0; i<L.get_size(); ++i){
-          cout << L.get_n(i).get_name() << " " << L.get_n(i).get_author() << " " <<
+          cout << i+1 << ".   " << L.get_n(i).get_name() << " " << L.get_n(i).get_author() << " " <<
           L.get_n(i).get_page() << " " << L.get_n(i).get_year() << endl;
         }
         break;

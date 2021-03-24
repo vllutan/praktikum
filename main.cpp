@@ -1,5 +1,5 @@
 #include <iostream>
-#include <cstring>
+#include <string>
 
 using namespace std;
 
@@ -25,7 +25,7 @@ class Transport{
     ++counter;
   }
 
-  Transport(Transport &t){
+  Transport(const Transport &t){
     cost = t.get_cost();
     duration = t.get_duration();
     company = t.get_company();
@@ -38,7 +38,7 @@ class Transport{
     ++counter;
   }
 
-  Transport(int n_cost, int n_duration, string& n_company, string *n_route, int n_num_stops){
+  Transport(int n_cost, int n_duration, string& n_company, string* const n_route, int n_num_stops){
     cost = n_cost;
     duration = n_duration;
     company = n_company;
@@ -59,12 +59,12 @@ class Transport{
     return *this;
   }
 
-  const int get_cost() const {return cost;}
-  const int get_duration() const {return duration;}
-  const string get_company() const {return company;}
-  string* get_route() const {return route_stops;}
-  const int get_stops_num() const {return stops_num;}
-  const int get_counter() const {return counter;}
+  int get_cost() const {return cost;}
+  int get_duration() const {return duration;}
+  string get_company() const {return company;}
+  string* const get_route() const { return route_stops; }
+  int get_stops_num() const {return stops_num;}
+  int get_counter() const {return counter;}
 
   void PrintRoute(){
     for(int i=0; i<stops_num; ++i) cout << i+1 << ". " << route_stops[i] << endl;
@@ -72,25 +72,24 @@ class Transport{
 
   virtual ostream& Print(ostream &out) const = 0;
   virtual void NeededDocuments() = 0;
-  friend ostream& operator<<(ostream &out, Transport &t) {
+  friend ostream& operator<<(ostream &out, const Transport &t) {
     return t.Print(out);
   }
 
-  void operator() (const int time_left) const {
+  void operator() (int time_left) const {
     if(time_left > duration) cout << "You'll be late" << endl;
     else cout << "You'll get on time" << endl;
   }
 
-  ~Transport(){
+  virtual ~Transport(){
     delete [] route_stops;
-    route_stops = nullptr;
     counter--;
     cout << "transport destructed" << endl;
   }
 
 };
 
-int Transport::counter;
+int Transport::counter = 0;
 
 class Bus : public Transport {
   int number;
@@ -98,12 +97,12 @@ class Bus : public Transport {
 
   Bus() : Transport () {number = 0; cout << "bus basic made" << endl;}
 
-  Bus(Bus &b) : Transport(b) {
+  Bus(const Bus &b) : Transport(b) {
     number = b.get_number();
     cout << "bus from bus made" << endl;
   }
 
-  Bus(int n_cost, int n_duration, string& n_company, string *n_route, int n_num_stops, int n_number) :
+  Bus(int n_cost, int n_duration, string& n_company, string* const n_route, int n_num_stops, int n_number) :
   Transport (n_cost, n_duration, n_company, n_route, n_num_stops){
     number = n_number;
     cout << "bus from variable made" << endl;
@@ -127,7 +126,7 @@ class Bus : public Transport {
     return *this;
   }
 
-  const int get_number() const {return number;}
+  int get_number() const {return number;}
 
   ostream& Print(ostream &out) const override {
     out << "Bus number " << number << " from " << this->get_company() << " rides for " << this->get_duration() <<
@@ -139,7 +138,7 @@ class Bus : public Transport {
     cout << "You'll need " << this->get_cost() << " rubles and maybe a social card" << endl;
   }
 
-  ~Bus() {
+  ~Bus() override {
     cout << "bus destructed" << endl;
   }
 };
@@ -151,12 +150,12 @@ class Plane : public Transport {
 
   Plane() : Transport () {number = "-"; cout << "plane basic made" << endl;}
 
-  Plane(Plane &p) : Transport(p) {
+  Plane(const Plane &p) : Transport(p) {
           number = p.get_number();
           cout << "plane from plane made" << endl;
   }
 
-  Plane(int n_cost, int n_duration, string& n_company, string *n_route, int n_num_stops, string& n_number) :
+  Plane(int n_cost, int n_duration, string& n_company, string* const n_route, int n_num_stops, string& n_number) :
           Transport (n_cost, n_duration, n_company, n_route, n_num_stops){
     number = n_number;
     cout << "plane from variable made" << endl;
@@ -180,11 +179,13 @@ class Plane : public Transport {
     return *this;
   }
 
-  const string get_number() const {return number;}
+  string get_number() const {return number;}
 
   ostream& Print(ostream &out) const override {
-    out << "Flight number " << number << " of " << this->get_company() << " from " << this->get_route()[0] <<
-        " to " << this->get_route()[1] << " will be on the go for " << this->get_duration()<< " minutes." << endl;
+    out << "Flight number " << number << " of " << this->get_company() << " from "
+        << ((this->get_route() == nullptr)?(" - "):(this->get_route()[0]));
+    out << " to " << ((this->get_route() == nullptr)? " - " : this->get_route()[1]) ;
+    out << " will be on the go for " << this->get_duration()<< " minutes." << endl;
     return out;
   }
 
@@ -192,7 +193,7 @@ class Plane : public Transport {
     cout << "You'll need " << this->get_cost() << " rubles, passport and ID" << endl;
   }
 
-  ~Plane() {
+  ~Plane() override {
     cout << "plane destructed" << endl;
   }
 };
@@ -201,8 +202,11 @@ int main() {
   Transport::counter = 0;
 
   string* road = new string[2];
+  string* road2 = new string[2];
   road[0] = "a";
   road[1] = "b";
+  road2[0] = "a";
+  road2[1] = "b";
   string comp = "M";
   string numb = "A007";
 
@@ -218,7 +222,7 @@ int main() {
 
   cout << Transport::counter << endl << b1 << b2 << b3 << b4;
 
-  Plane p1(180, 20, comp, road, 2, numb);
+  Plane p1(180, 20, comp, road2, 2, numb);
   Plane p2=p1, p3, p4;
   p3=p1;
 

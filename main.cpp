@@ -38,12 +38,17 @@ class Transport{
     ++counter;
   }
 
-  Transport(int n_cost, int n_duration, string& n_company, string* const n_route, int n_num_stops){
+  Transport(int n_cost, int n_duration, string& n_company, const string* n_route, int n_num_stops){
     cost = n_cost;
     duration = n_duration;
     company = n_company;
-    route_stops = n_route;
     stops_num = n_num_stops;
+
+    route_stops = new string [stops_num];
+    for (int i=0; i<stops_num; ++i){
+      route_stops[i] = n_route[i];
+    }
+
     cout << "transport from variables made" << endl;
     ++counter;
   }
@@ -53,7 +58,11 @@ class Transport{
     duration = t.get_duration();
     company = t.get_company();
     stops_num = t.get_stops_num();
-    route_stops = t.get_route();
+
+    route_stops = new string [stops_num];
+    for (int i=0; i<stops_num; ++i){
+      route_stops[i] = t.get_route()[i];
+    }
 
     cout << "transport with = made" << endl;
     return *this;
@@ -62,7 +71,7 @@ class Transport{
   int get_cost() const {return cost;}
   int get_duration() const {return duration;}
   string get_company() const {return company;}
-  string* const get_route() const { return route_stops; }
+  const string* get_route() const { return route_stops; }
   int get_stops_num() const {return stops_num;}
   int get_counter() const {return counter;}
 
@@ -102,7 +111,7 @@ class Bus : public Transport {
     cout << "bus from bus made" << endl;
   }
 
-  Bus(int n_cost, int n_duration, string& n_company, string* const n_route, int n_num_stops, int n_number) :
+  Bus(int n_cost, int n_duration, string& n_company, const string* n_route, int n_num_stops, int n_number) :
   Transport (n_cost, n_duration, n_company, n_route, n_num_stops){
     number = n_number;
     cout << "bus from variable made" << endl;
@@ -155,7 +164,7 @@ class Plane : public Transport {
           cout << "plane from plane made" << endl;
   }
 
-  Plane(int n_cost, int n_duration, string& n_company, string* const n_route, int n_num_stops, string& n_number) :
+  Plane(int n_cost, int n_duration, string& n_company, const string* n_route, int n_num_stops, string& n_number) :
           Transport (n_cost, n_duration, n_company, n_route, n_num_stops){
     number = n_number;
     cout << "plane from variable made" << endl;
@@ -201,8 +210,8 @@ class Plane : public Transport {
 int main() {
   Transport::counter = 0;
 
-  string* road = new string[2];
-  string* road2 = new string[2];
+  string * road = new string[2];
+  auto * road2 = new string[2];
   road[0] = "a";
   road[1] = "b";
   road2[0] = "a";
@@ -216,7 +225,6 @@ int main() {
   b1(20);
 
   Bus b2 = b1;
-
   Bus b3, b4;
   b3 = b1;
 

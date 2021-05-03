@@ -115,7 +115,7 @@ class HttpHeader{
   }
 
   static HttpHeader parse_header(const string& line){
-    int i = 0;
+    size_t i = 0;
     string new_name, new_value;
     if(!line.empty()){
       while(line[i] != ':'){
@@ -163,15 +163,29 @@ class HttpHeader{
 };
 
 class HttpResponse{
-  string status;
+  string start_header;
+  int code;
+  string method;
+  string headers;
+  std::vector<uint8_t> body;
+
  public:
-// finish
-}; */
+
+ //HttpResponse(string& s_h, int c, string &m, string &h, std::vector<uint8_t> b) :
+    //start_header(s_h), code(c), method(m), headers(h), body(b){}
+ //HttpResponse(std::vector<string> lines){}
+
+ string get_start_header() const {return start_header;}
+ int get_code() const {return code;}
+ string get_headers() const {return headers;}
+ std::vector<uint8_t> get_body() const {return body;}
+
+};*/
 
 std::vector<string> split_lines(const string& line){
   std::vector<string> res;
   string tmp;
-  size_t begin_pos=0, end_pos=0;
+  long int begin_pos=0, end_pos;
 
   while( (end_pos = line.find("\r\n", begin_pos)) != -1){
     tmp = line.substr(begin_pos, end_pos + 2 - begin_pos);
@@ -213,7 +227,7 @@ void ProcessConnection(int cd, const SocketAddress &clAddr){
 
   int fd = open(path.c_str(), O_RDONLY);                         //default_connection (later with cgi choice)
   if(fd < 0) {
-    response = "HTTP/1.1 404 NotOk"; code = 404;
+    response = "HTTP/1.1 404 Not Found"; code = 404;
     fd = open("404.html", O_RDONLY);
     if (fd < 0) throw "no 404 error file";
   }
@@ -234,9 +248,11 @@ void ProcessConnection(int cd, const SocketAddress &clAddr){
   header = "Version: HTTP/1.1\r\nDate: " + (string)buffer + "\r\nServer: Apache/2.4.41 (Ubuntu)\r\n";
 
   string content_type="";                                 // get Content-Type
-  if((path.rfind("jpg", path.length())!=-1) || (path.rfind("jpeg", path.length())!=-1) || (path.rfind("png", path.length())!=-1)){
+  int dot = path.rfind('.', path.length());
+  string doc_type = path.substr(dot + 1, path.length()-1);
+  if ((doc_type == "jpg") || (doc_type == "png") || (doc_type == "jpeg")){
     content_type = "image/jpeg";
-  } else if(path.rfind("html", path.length())!=-1){
+  } else if (doc_type == "html"){
     content_type = "text/html";
   } else content_type = "text/plain";
 
